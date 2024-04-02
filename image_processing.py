@@ -6,7 +6,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import atomap.api as am
 import tkinter as tk
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilenames
 import os, time
 from skimage.restoration import estimate_sigma
 from sklearn import decomposition
@@ -31,7 +31,7 @@ def open_file():
     root = tk.Tk()
     root.attributes('-topmost',True)
     root.iconify()   
-    file_path = askopenfilename(parent=root)
+    file_path = askopenfilenames(parent=root)
     root.destroy()
     return file_path
 
@@ -46,8 +46,8 @@ def scaling(s, det_image):
     s.metadata.General.title = ''
 
     # Intensity scaling
-    #s_normalised = am.quant.detector_normalisation(s, det_image, inner_angle=inner_angle, outer_angle=outer_angle)
-    s_normalised = s
+    s_normalised = am.quant.detector_normalisation(s, det_image, inner_angle=inner_angle, outer_angle=outer_angle)
+    #s_normalised = s
     # Plot
     s_normalised.plot(colorbar=False)
     ax=plt.gca()
@@ -93,9 +93,6 @@ def band_pass(image):
     image = image[pixels_cropped:-pixels_cropped,pixels_cropped:-pixels_cropped]
     high_pass=np.mean(np.abs(fft.ifft2((fft.fft2(image)==fft.fft2(image)[0,0])*fft.fft2(image))))+butterworth(image,0.005,True,order=2)
     band_pass=butterworth(high_pass,0.08,False,order=4)
-    spectrum=fft.fftshift(fft.fft2(image))
-    spectrum2=fft.fftshift(fft.fft2(high_pass))
-    spectrum3=fft.fftshift(fft.fft2(band_pass))
     return band_pass
     
 def compare(original_imag, filter_imag, text):
@@ -128,23 +125,29 @@ def compare(original_imag, filter_imag, text):
 def get_sublattice(s_normalised, optimal_separation, optimal_separation_d):
     atom_positions = am.get_atom_positions(s_normalised, optimal_separation,pca=True,subtract_background=True, normalize_intensity=True)
     sublattice = am.Sublattice(atom_positions, s_normalised)
+    sublattice.find_nearest_neighbors()
+    sublattice.refine_atom_positions_using_center_of_mass()
+    #sublattice.refine_atom_positions_using_2d_gaussian()
     #sublattice.get_atom_list_on_image(markersize=5).plot()
-    dumbbell_vector = ipf.find_dumbbell_vector(atom_positions)
     
     
-    dumbbell_positions = am.get_atom_positions(s_normalised, optimal_separation_d,pca=True,subtract_background=True, normalize_intensity=True)
-    sublattice = am.Sublattice(dumbbell_positions, s_normalised)
-    #sublattice.get_atom_list_on_image(markersize=5).plot()
+    if dumbell is True:
+        dumbbell_vector = ipf.find_dumbbell_vector(atom_positions)
+        dumbbell_positions = am.get_atom_positions(s_normalised, optimal_separation_d,pca=True,subtract_background=True, normalize_intensity=True)
+        sublattice = am.Sublattice(dumbbell_positions, s_normalised)
+        #sublattice.get_atom_list_on_image(markersize=5).plot()
 
-    # Dumbell recognition
-    dumbbell_positions = np.asarray(dumbbell_positions)
-    dumbbell_lattice = ipf.make_atom_lattice_dumbbell_structure(s_normalised, dumbbell_positions, dumbbell_vector)
-    dumbbell_lattice.pixel_size=s_normalised.axes_manager[0].scale
-    dumbbell_lattice.sublattice_list[0].pixel_size=s_normalised.axes_manager[0].scale
-    dumbbell_lattice.sublattice_list[1].pixel_size=s_normalised.axes_manager[0].scale
-    dumbbell_lattice.units=s_normalised.axes_manager[0].units
-    dumbbell_lattice.sublattice_list[0].units=s_normalised.axes_manager[0].units
-    dumbbell_lattice.sublattice_list[1].units=s_normalised.axes_manager[0].units
+        # Dumbell recognition
+        dumbbell_positions = np.asarray(dumbbell_positions)
+        dumbbell_lattice = ipf.make_atom_lattice_dumbbell_structure(s_normalised, dumbbell_positions, dumbbell_vector)
+        dumbbell_lattice.pixel_size=s_normalised.axes_manager[0].scale
+        dumbbell_lattice.sublattice_list[0].pixel_size=s_normalised.axes_manager[0].scale
+        dumbbell_lattice.sublattice_list[1].pixel_size=s_normalised.axes_manager[0].scale
+        dumbbell_lattice.units=s_normalised.axes_manager[0].units
+        dumbbell_lattice.sublattice_list[0].units=s_normalised.axes_manager[0].units
+        dumbbell_lattice.sublattice_list[1].units=s_normalised.axes_manager[0].units
+    else:
+        return sublattice
 
 
     return dumbbell_lattice
@@ -164,7 +167,7 @@ def intensity_map(image, atom_lattice):
         index=sublattice_A.zones_axis_average_distances.index((0,0))
         sublattice_A.zones_axis_average_distances.remove(sublattice_A.zones_axis_average_distances[index])
         sublattice_A.zones_axis_average_distances_names.remove(sublattice_A.zones_axis_average_distances_names[index])
-    sublattice_A._generate_all_atom_plane_list(atom_plane_tolerance=1.5)
+    sublattice_A._generate_all_atom_plane_list(atom_plane_tolerance=0.5)
     sublattice_A._sort_atom_planes_by_zone_vector()
     sublattice_A._remove_bad_zone_vectors()
     
@@ -175,7 +178,16 @@ def intensity_map(image, atom_lattice):
     atom_planes = sublattice_A.atom_planes_by_zone_vector[zone_vector]
     zone_axis = sublattice_A.get_atom_planes_on_image(atom_planes)
     
-    
+    # Plot directions
+    zone_axis.plot()
+    ax = plt.gca()
+    fig=plt.gcf()
+    fig.set_size_inches((10,10))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    plt.show()
+    #######
+
     sublattice_A.find_sublattice_intensity_from_masked_image(sublattice_A.original_image,radius=7)
     zone_axis_A = sublattice_A.zones_axis_average_distances[direction]
     atom_plane_list_A = sublattice_A.atom_planes_by_zone_vector[zone_axis_A]
@@ -225,7 +237,7 @@ def intensity_map(image, atom_lattice):
         index=sublattice_B.zones_axis_average_distances.index((0,0))
         sublattice_B.zones_axis_average_distances.remove(sublattice_B.zones_axis_average_distances[index])
         sublattice_B.zones_axis_average_distances_names.remove(sublattice_B.zones_axis_average_distances_names[index])
-    sublattice_B._generate_all_atom_plane_list(atom_plane_tolerance=1.5)
+    sublattice_B._generate_all_atom_plane_list(atom_plane_tolerance=0.5)
     sublattice_B._sort_atom_planes_by_zone_vector()
     sublattice_B._remove_bad_zone_vectors()
     
@@ -236,6 +248,18 @@ def intensity_map(image, atom_lattice):
     zone_axis = sublattice_B.get_atom_planes_on_image(atom_planes)
     
 
+    ##  Plot axis
+    zone_axis.plot()
+    ax = plt.gca()
+    fig=plt.gcf()
+    fig.set_size_inches((10,10))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    plt.show()
+    ######
+
+
+    
     sublattice_B.find_sublattice_intensity_from_masked_image(sublattice_B.original_image,radius=5)
     zone_axis_B = sublattice_B.zones_axis_average_distances[direction]
     atom_plane_list_B = sublattice_B.atom_planes_by_zone_vector[zone_axis_B]
@@ -277,6 +301,87 @@ def intensity_map(image, atom_lattice):
     
     return intensity_A, intensity_B
 
+
+def intensity_map2(image, atom_lattice):
+    sublattice_B=atom_lattice
+    atom_lattice.units=atom_lattice.sublattice_list[0].units
+    atom_lattice.pixel_size=atom_lattice.sublattice_list[0].pixel_size
+    
+
+
+    # Intnsity of B sublattice
+    
+    sublattice_B.original_image=image
+    sublattice_B.find_nearest_neighbors(nearest_neighbors=15)
+    sublattice_B._pixel_separation = sublattice_B._get_pixel_separation()
+    sublattice_B._make_translation_symmetry()
+    if ((0,0) in sublattice_B.zones_axis_average_distances):
+        index=sublattice_B.zones_axis_average_distances.index((0,0))
+        sublattice_B.zones_axis_average_distances.remove(sublattice_B.zones_axis_average_distances[index])
+        sublattice_B.zones_axis_average_distances_names.remove(sublattice_B.zones_axis_average_distances_names[index])
+    sublattice_B._generate_all_atom_plane_list(atom_plane_tolerance=0.5)
+    sublattice_B._sort_atom_planes_by_zone_vector()
+    sublattice_B._remove_bad_zone_vectors()
+    
+    direction=2
+
+    zone_vector = sublattice_B.zones_axis_average_distances[direction]
+    atom_planes = sublattice_B.atom_planes_by_zone_vector[zone_vector]
+    zone_axis = sublattice_B.get_atom_planes_on_image(atom_planes)
+    
+
+    ##  Plot axis
+    zone_axis.plot()
+    ax = plt.gca()
+    fig=plt.gcf()
+    fig.set_size_inches((10,10))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    plt.show()
+    ######
+
+
+    
+    sublattice_B.find_sublattice_intensity_from_masked_image(sublattice_B.original_image,radius=5)
+    zone_axis_B = sublattice_B.zones_axis_average_distances[direction]
+    atom_plane_list_B = sublattice_B.atom_planes_by_zone_vector[zone_axis_B]
+    intensity_B=[]
+    x_values=[]
+    y_values=[]
+    for i in range(0,len(atom_plane_list_B)):
+        atomplane=atom_plane_list_B[i]
+        plane_intensity=[]
+        x_values_plane=[]
+        y_values_plane=[]
+        for j in range(0, len(atomplane.atom_list)):
+            atom=atomplane.atom_list[j]
+            x_pos,y_pos=atom.get_pixel_position()
+            intensity=atom.intensity_mask
+            plane_intensity.append(intensity)
+            x_values_plane.append(x_pos)
+            y_values_plane.append(y_pos)
+        intensity_B.append(plane_intensity)
+        x_values.append(x_values_plane)
+        y_values.append(y_values_plane)
+    
+    intensity_B_array = np.zeros([len(intensity_B),len(max(intensity_B,key = lambda x: len(x)))])
+    intensity_B_array[:] = np.nan
+    for i,j in enumerate(intensity_B):
+        intensity_B_array[i][0:len(j)] = j
+    
+    x_values_array = np.zeros([len(x_values),len(max(x_values,key = lambda x: len(x)))])
+    x_values_array[:] = np.nan
+    for i,j in enumerate(x_values):
+        x_values_array[i][0:len(j)] = j
+    
+    y_values_array = np.zeros([len(y_values),len(max(y_values,key = lambda x: len(x)))])
+    y_values_array[:] = np.nan
+    for i,j in enumerate(y_values):
+        y_values_array[i][0:len(j)] = j
+        
+    intensity_B=np.stack((intensity_B_array,x_values_array,y_values_array),axis=2)
+    
+    return intensity_B
 
 
 
@@ -373,7 +478,7 @@ def composition_profile(intensity_A, intensity_B, atom_lattice):
     ax1.axis('off')
     ax1.set_ylim(ax1.get_ylim()[::-1]) 
     plt.tight_layout()
-    plt.show()
+    plt.show(block=False)
     
     
     
@@ -408,61 +513,10 @@ def composition_profile(intensity_A, intensity_B, atom_lattice):
     at.patch.set(edgecolor='lightgray')
     at.patch.set_boxstyle('round,pad=0.,rounding_size=0.1')
     plot.add_artist(at)
-    plt.show()
+    plt.show(block=False)
     
-    
-# Plot results
 
-def plot_profile(intensity_A, intensity_B):
-    plt.figure(figsize=(8, 8))
-    
-    # First subplot
-    plt.subplot(1, 3, 1)  # 1 row, 3 columns, subplot 1
-    plt.scatter(intensity_A[:,:,1], intensity_A[:,:,2], s=20, c=intensity_A[:,:,0], cmap='gnuplot')
-    plt.colorbar(shrink=0.5, pad=-0.18)
-    plt.axis('scaled')
-    plt.axis('off')
-    ax = plt.gca()
-    ax.xaxis.tick_top() 
-    ax.yaxis.tick_left()
-    plt.tight_layout()
-    ax.set_ylim(ax.get_ylim()[::-1]) 
-    plt.title('Group III')
-    
-    # Second subplot
-    plt.subplot(1, 3, 2)  # 1 row, 3 columns, subplot 2
-    plt.scatter(intensity_B[:,:,1], intensity_B[:,:,2], s=20, c=intensity_B[:,:,0], cmap='jet')
-    plt.colorbar(shrink=0.5, pad=-0.18)
-    plt.axis('scaled')
-    plt.axis('off')
-    ax = plt.gca()
-    ax.set_ylim(ax.get_ylim()[::-1]) 
-    ax.xaxis.tick_top() 
-    ax.yaxis.tick_left()
-    plt.tight_layout()
-    plt.title('Group V')
-    
-    # Third subplot
-    plt.subplot(1, 3, 3)  # 1 row, 3 columns, subplot 3
-    plt.errorbar(avg_axis, avg_intensity, yerr=avg_std, ecolor='lightcoral', marker='.', fmt=':', capsize=3, alpha=0.75, mec='red', mfc='red', color='red' )
-    plt.fill_between(avg_axis, avg_intensity - avg_std, avg_intensity + avg_std, alpha=.25, color='lightcoral')
-    plt.errorbar(avg_axis1, avg_intensity1, yerr=avg_std1, ecolor='lightblue', marker='.', fmt=':', capsize=3, alpha=0.75, mec='skyblue', mfc='skyblue', color='skyblue' )
-    plt.fill_between(avg_axis1, avg_intensity1 - avg_std1, avg_intensity1 + avg_std1, alpha=.25, color='lightblue')
-    plt.xlabel('Position [nm]')
-    plt.ylabel('Intensity')
-    plt.minorticks_on()
-    plt.grid(which='both', linestyle='--', color='gray', alpha=0.5)
-    plt.title('Intensity vs Position')
-    
-    # Adjust layout
-    plt.tight_layout()
-    
-    # Show the figure
-    plt.show()
-
-
-
-def plot_profile2(intensity_A,intensity_B):
+def plot_profile(intensity_A,intensity_B):
 
     # Create figure and axes with custom size
     fig, axs = plt.subplots(1, 3, figsize=(18, 6), gridspec_kw={'width_ratios': [2.5, 2.5, 4]})
@@ -502,57 +556,77 @@ def plot_profile2(intensity_A,intensity_B):
     plt.tight_layout()
     
     # Show the figure
-    plt.show()
+    plt.show(block=False)
+
 
 
 
 if __name__ == '__main__':
-    
-    #file_path = 'C:/UNIVERSIDAD/Repu/Workspace/20240319_1343_STEM_13_6_nm_HAADF_7_30_Mx_Nano_Diffraction_B_DCFIHAADF.tif'
-    #s=hs.load(file_path)
-    
-    file_path= open_file()
-    s=hs.load(file_path)
-    #s1 = hs.signals.Signal2D(plt.imread(file_path))
-    #s.data = s1.data[:,:,0] 
-    #s.axes_manager.remove(1)
-    #sdata = s.axes_manager[0].axis
-    #dict1 = {'axis': sdata}
-    #s.axes_manager.create_axes([dict1])
-    #s.data = s.data[:,:,0]
-    #s.axes_manager.remove(0)
-    
-    path = os.path.splitext(file_path)[0]
-    if not (os.path.exists(path)):
-        os.mkdir(path)
-    
+
     global pixels_cropped, pixel_size_pm, inner_angle, outer_angle
-    pixel_size_pm=3.326 #6.652 # pm
+    pixel_size_pm=6.652 #3.326 #6.652 # pm
     inner_angle=130
     outer_angle=200
-    pixels_cropped=32
+    pixels_cropped=50
+
+    file_paths= open_file()
+    det_path= open_file()
+    det_image=hs.signals.Signal2D(plt.imread(det_path[0]))
+
+    global dumbell
+    dumbell = False
+
+    for file_path in file_paths:
     
-    file_path= open_file()
-    det_image=hs.signals.Signal2D(plt.imread(file_path))
-    
-    s_normalised = scaling(s, det_image)
-    original_imag=s_normalised.data
-    sigma_est = np.mean(estimate_sigma(original_imag[pixels_cropped:-pixels_cropped,pixels_cropped:-pixels_cropped]))
-    
-    
-    pca_imag = PCA(original_imag, n_components = 8)
-    #rl_imag = RL(original_imag, probe_resolution = 0.065, iters = 5)
-    #nl_imag =  NL(original_imag, sigma_est)
-    
-    band_pass_pca_imag = band_pass(pca_imag)
-    
-    #st = time.time()
-    s_normalised.data=original_imag[pixels_cropped:-pixels_cropped, pixels_cropped:-pixels_cropped]
-    atom_lattice = get_sublattice(s_normalised, optimal_separation = 21, optimal_separation_d = 58)
-    intensity_A, intensity_B = intensity_map(band_pass_pca_imag, atom_lattice)
-    #et = time.time()
-    #print(elapsed_time = et - st)
-    composition_profile(intensity_A, intensity_B, atom_lattice)
+        s=hs.load(file_path)
+        s = s.isig[10:1000, 10:3000]
+        
+        path = os.path.splitext(file_path)[0]
+        if not (os.path.exists(path)):
+            os.mkdir(path)
+
+        
+        s_normalised = scaling(s, det_image)
+        original_imag=s_normalised.data
+        original_imag=original_imag[pixels_cropped:-pixels_cropped,pixels_cropped:-pixels_cropped]
+        #sigma_est = np.mean(estimate_sigma(original_imag))
+        
+        
+        pca_imag = PCA(original_imag, n_components = 16)
+        #rl_imag = RL(original_imag, probe_resolution = 0.065, iters = 5)
+        #nl_imag =  NL(original_imag, sigma_est)
+        
+        band_pass_pca_imag = band_pass(pca_imag)
+        
+        # Find sublattice
+        #st = time.time()
+        s_normalised.data=original_imag
+        if (os.path.exists(path+'\\data.hdf5')):
+            atom_lattice = am.load_atom_lattice_from_hdf5(path+'\\data.hdf5',construct_zone_axes=False)
+        else:
+            atom_lattice = get_sublattice(s_normalised, optimal_separation = 18, optimal_separation_d = 24)
+            atom_lattice.save(path+'\\data.hdf5', overwrite=True)
+
+        # Intensity map
+        images = ["pca_imag"]
+        for image_name in images:
+
+            if (os.path.exists(path+'\\im_A_'+image_name+'.npy')) & (os.path.exists(path+'\\im_B_'+image_name+'.npy')):
+                intensity_A = np.load(path+'\\im_A_'+image_name+'.npy')
+                intensity_B = np.load(path+'\\im_B_'+image_name+'.npy')
+            else:
+                intensity_A, intensity_B = intensity_map(globals()[image_name], atom_lattice)
+                np.save(path+'\\im_A_'+image_name+'.npy',intensity_A)
+                np.save(path+'\\im_B_'+image_name+'.npy',intensity_B)
+            compare(original_imag , pca_imag, 'PCA - 8')
+            intensity_A, intensity_B = intensity_B, intensity_A
+            composition_profile(intensity_A, intensity_B, atom_lattice)
+            #et = time.time()
+            #print(elapsed_time = et - st)
+        
+        
+        #plot_profile(intensity_A,intensity_B)
+        #print('end')
     
     
     
