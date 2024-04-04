@@ -1,11 +1,35 @@
 import atomap.initial_position_finding as ipf
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import atomap.api as am
 
 # Module to make the atomap image processing: get subalttice and intensity maps
 
-def get_sublattice(s_normalised, optimal_separation, optimal_separation_d, dumbell):
+def lattice_error(sublattice):
+    positions = np.array([sublattice.x_position, sublattice.y_position]).swapaxes(0, 1)
+      
+    # cKDTree
+    tree = cKDTree(positions)
+    distances, indices = tree.query(positions, k=2)  # k=2 para obtener el vecino más cercano excluyendo el punto mismo
+    
+    # Seleccionar solo las distancias al vecino más cercano
+    nearest_neighbor_distances = distances[:, 1]
+    
+    # Calcular la distancia promedio y la desviación estándar
+    mean_distance = np.mean(nearest_neighbor_distances)
+    std_dev_distance = np.std(nearest_neighbor_distances)
+    
+    print("Distancias a los vecinos más cercanos:", nearest_neighbor_distances)
+    print("Distancia promedio:", mean_distance)
+    print("Desviación estándar de las distancias:", std_dev_distance)
+    
+    neighbor_distances = [mean_distance, std_dev_distance]
+    return neighbor_distances
+    
+
+
+def get_sublattice(s_normalised, optimal_separation, optimal_separation_d, dumbell, find_error = True):
     atom_positions = am.get_atom_positions(s_normalised, optimal_separation,pca=True,subtract_background=True, normalize_intensity=True)
     sublattice = am.Sublattice(atom_positions, s_normalised)
     sublattice.find_nearest_neighbors()
@@ -30,9 +54,15 @@ def get_sublattice(s_normalised, optimal_separation, optimal_separation_d, dumbe
         dumbbell_lattice.sublattice_list[0].units=s_normalised.axes_manager[0].units
         dumbbell_lattice.sublattice_list[1].units=s_normalised.axes_manager[0].units
     else:
-        return sublattice
-
-
+        if (find_error is True):   
+            print("Fin error")
+            neighbor_distances = lattice_error(sublattice)
+            return sublattice, neighbor_distances
+        else:    
+            return sublattice
+    
+    
+    
     return dumbbell_lattice
 
 def intensity_map(image, atom_lattice):
