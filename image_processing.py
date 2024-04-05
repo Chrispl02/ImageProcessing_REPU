@@ -50,6 +50,24 @@ def make_intensity_map2(path, atom_lattice, images):
             np.save(path+'\\im_B_'+image_name+'.npy',intensity_B)
     return intensity_B
 
+
+def find_optimal_pixel_sep(image, pixel_size_pm):
+    pixel_min_sep = round(390/pixel_size_pm/8)
+    pixel_max_sep = round(390/pixel_size_pm/2)
+    neighbor_distances = []
+    pixel_separations = np.array(range (pixel_min_sep, pixel_max_sep))
+    for optimal_separation in pixel_separations:
+        print("Optimal separation: ", optimal_separation)
+        try:
+            atom_lattice, neighbor_distance = get_sublattice(image, optimal_separation, optimal_separation_d , dumbell)
+            neighbor_distances.append(neighbor_distance)
+        except:
+            print("Not able to obtain consistent atom positions with this separation distance")
+    neighbor_distances = np.array(neighbor_distances)
+    plt.plot(pixel_separations, neighbor_distances[:,1],'o')
+    optimal = pixel_separations[np.argmin(neighbor_distances[:,1])]
+    return optimal
+
 global pixels_cropped, pixel_size_pm, inner_angle, outer_angle
 pixel_size_pm=6.652 #3.326 #6.652 # pm
 inner_angle=130
@@ -76,46 +94,15 @@ for file_path in file_paths:
         os.mkdir(path)
 
     SL = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-    SL_1 = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-    SL_2 = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-    SL_4 = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-    SL_8 = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-    SL_16 = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-    SL_32 = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-    
+
     SL.scale(det_image)
-    SL_1.scale(det_image)
-    SL_2.scale(det_image)
-    SL_4.scale(det_image)
-    SL_8.scale(det_image)
-    SL_16.scale(det_image)
-    SL_32.scale(det_image)
-    
-    SL_2.image.data=SL.PCA(1)
-    SL_2.image.data=SL.PCA(2)
-    SL_4.image.data=SL.PCA(4)
-    SL_8.image.data=SL.PCA(8)
-    SL_16.image.data=SL.PCA(16)
-    SL_32.image.data=SL.PCA(32)
-    
-    optimal_separation = 14
+    SL.PCA(4)
     optimal_separation_d = 24
-    
-    atom_lattice, neighbor_distances = get_sublattice(SL.image, optimal_separation, optimal_separation_d , dumbell)
-    atom_lattice_1, neighbor_distances_1 = get_sublattice(SL_1.image, optimal_separation, optimal_separation_d , dumbell)
-    atom_lattice_2, neighbor_distances_2 = get_sublattice(SL_2.image, optimal_separation, optimal_separation_d , dumbell)
-    atom_lattice_4, neighbor_distances_4 = get_sublattice(SL_4.image, optimal_separation, optimal_separation_d,dumbell)
-    atom_lattice_8, neighbor_distances_8 = get_sublattice(SL_8.image, optimal_separation, optimal_separation_d ,dumbell)
-    atom_lattice_16, neighbor_distances_16 = get_sublattice(SL_16.image, optimal_separation, optimal_separation_d ,dumbell)
-    atom_lattice_32, neighbor_distances_32 = get_sublattice(SL_32.image, optimal_separation, optimal_separation_d,dumbell)
+    #optimal_separation = find_optimal_pixel_sep(SL.image, SL.image.pixel_size_pm)
+    optimal_separation = 16
+    atom_lattice = get_sublattice(SL.image, optimal_separation, optimal_separation_d , dumbell, find_error = False)
     
     
-    neighbor_distance = [neighbor_distances, neighbor_distances_1, neighbor_distances_2, neighbor_distances_4, neighbor_distances_8, neighbor_distances_16, neighbor_distances_32]
-    neighbor_distance = np.array(neighbor_distance)
-    order = ['Any', 'PCA-1', 'PCA-2', 'PCA-4', 'PCA-8', 'PCA-16', 'PCA-32']
-    plt.plot(order, neighbor_distance[:,1], marker='o', linestyle='-')
-    #atom_lattice = make_lattice(path, SL_4.image, optimal_separation, optimal_separation_d , dumbell)
-    pca_imag = SL_4.image.data
     # Intensity map
     images = ["pca_imag"]
     #make_intensity_map2(path, atom_lattice, images)

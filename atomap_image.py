@@ -6,21 +6,23 @@ import atomap.api as am
 
 # Module to make the atomap image processing: get subalttice and intensity maps
 
+
+
 def lattice_error(sublattice):
     positions = np.array([sublattice.x_position, sublattice.y_position]).swapaxes(0, 1)
       
     # cKDTree
     tree = cKDTree(positions)
-    distances, indices = tree.query(positions, k=2)  # k=2 para obtener el vecino más cercano excluyendo el punto mismo
+    distances, indices = tree.query(positions, k=2)  # k=2 for 1st neighbord
     
-    # Seleccionar solo las distancias al vecino más cercano
+
     nearest_neighbor_distances = distances[:, 1]
     
-    # Calcular la distancia promedio y la desviación estándar
+
     mean_distance = np.mean(nearest_neighbor_distances)
     std_dev_distance = np.std(nearest_neighbor_distances)
     
-    print("Distancias a los vecinos más cercanos:", nearest_neighbor_distances)
+    #print("Distancias a los vecinos más cercanos:", nearest_neighbor_distances)
     print("Distancia promedio:", mean_distance)
     print("Desviación estándar de las distancias:", std_dev_distance)
     
