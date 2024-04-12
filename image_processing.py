@@ -51,22 +51,59 @@ def make_intensity_map2(path, atom_lattice, images):
     return intensity_B
 
 
-def find_optimal_pixel_sep(image, pixel_size_pm):
-    pixel_min_sep = round(390/pixel_size_pm/8)
-    pixel_max_sep = round(390/pixel_size_pm/2)
-    neighbor_distances = []
+def find_optimal_pixel_sep(image, pixel_size_pm, gaussian = False):
+    pixel_min_sep = round(320/pixel_size_pm/8)
+    pixel_max_sep = round(320/pixel_size_pm/3)
+    
+    total_atoms = []
     pixel_separations = np.array(range (pixel_min_sep, pixel_max_sep))
+    
+    # First step: Assest symmetry
+    neighbor_distances = []
     for optimal_separation in pixel_separations:
         print("Optimal separation: ", optimal_separation)
         try:
-            atom_lattice, neighbor_distance = get_sublattice(image, optimal_separation, optimal_separation_d , dumbell)
+            atom_lattice, neighbor_distance = get_sublattice(image, optimal_separation, dumbell, find_lattice_error = True)
             neighbor_distances.append(neighbor_distance)
+            total_atoms.append(np.array([atom_lattice.x_position, atom_lattice.y_position]).size)
         except:
             print("Not able to obtain consistent atom positions with this separation distance")
     neighbor_distances = np.array(neighbor_distances)
-    plt.plot(pixel_separations, neighbor_distances[:,1],'o')
-    optimal = pixel_separations[np.argmin(neighbor_distances[:,1])]
+    plt.plot(pixel_separations, total_atoms/np.min(total_atoms),marker='o')
+    plt.plot(pixel_separations, neighbor_distances[:,1],marker='o')
+    plt.xlabel('Minimum pixel separation [pixels]')
+    plt.legend(['Total atoms ratio', 'First neighbord distances standard deviation'],fontsize = 12)
+    plt.grid()
+    index = np.argmin(neighbor_distances[:,1])
+    optimal = pixel_separations[index]
+    
+    # Second step: Assess Gaussian Fitting
+    if gaussian is True:
+        gauss_pixel_separations = pixel_separations[max(0, index-4):min(len(pixel_separations), index+5)]
+        gaussian_deviations = []
+        for optimal_separation in gauss_pixel_separations:
+            print("Optimal separation: ", optimal_separation)
+            try:
+                atom_lattice, gaussian_deviation = get_sublattice(image, optimal_separation, dumbell, find_gaussian_error = True)
+                gaussian_deviations.append(gaussian_deviation)
+            except:
+                print("Not able to obtain consistent atom positions with this separation distance")
+        gaussian_deviations = np.array(gaussian_deviations)
+        sdv = np.sqrt(gaussian_deviations[:,0]**2 + gaussian_deviations[:,1] **2)
+        plt.plot(gauss_pixel_separations, sdv,marker='o')
+        plt.xlabel('Minimum pixel separation [pixels]')
+        plt.legend(['Total atoms ratio [a.u.]', 'First neighbord distances standard deviation [pm]','Standard deviation error [pm]'],fontsize = 12)
+        plt.grid()
+        optimal = gauss_pixel_separations[np.argmin(gaussian_deviations[1])]
+    else:
+        print('Invalid finding')
+        
+        
     return optimal
+
+
+
+
 
 global pixels_cropped, pixel_size_pm, inner_angle, outer_angle
 pixel_size_pm=6.652 #3.326 #6.652 # pm
@@ -94,18 +131,20 @@ for file_path in file_paths:
         os.mkdir(path)
 
     SL = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
-
+    SL_pca = imp(s,pixels_cropped, pixel_size_pm, inner_angle,outer_angle)
     SL.scale(det_image)
-    SL.PCA(4)
+    SL_pca.scale(det_image)
+    SL_pca.image.data=SL.PCA(4)
     optimal_separation_d = 24
-    #optimal_separation = find_optimal_pixel_sep(SL.image, SL.image.pixel_size_pm)
-    optimal_separation = 16
-    atom_lattice = get_sublattice(SL.image, optimal_separation, optimal_separation_d , dumbell, find_error = False)
+    optimal_separation = find_optimal_pixel_sep(SL.image, SL.pixel_size_pm ,gaussian=True)
+    #optimal_separation = 19
+    #atom_lattice = get_sublattice(SL.image, optimal_separation, optimal_separation_d , dumbell, find_error = False)
     
     
     # Intensity map
-    images = ["pca_imag"]
-    #make_intensity_map2(path, atom_lattice, images)
+    #pca_imag =  SL.image.data
+    #images = ["pca_imag"]
+    #intensity_B = make_intensity_map2(path, atom_lattice, images)
 
     
     #compare(original_imag , pca_imag, 'PCA - 8')

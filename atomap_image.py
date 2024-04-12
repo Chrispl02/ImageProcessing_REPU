@@ -30,9 +30,23 @@ def lattice_error(sublattice):
     return neighbor_distances
     
 
+def gaussian_error(sublattice):
+    sublattice.refine_atom_positions_using_2d_gaussian()
+    atoms = sublattice.atom_list
+    sx,sy = [],[]
+    for i in range(np.array(atoms).size):
+        sx.append(atoms[i].sigma_x)
+        sy.append(atoms[i].sigma_y)
+    error_sx = np.std(sx)
+    error_sy = np.std(sy)
+    gaussian_deviation = error_sx, error_sy
+    return gaussian_deviation
 
-def get_sublattice(s_normalised, optimal_separation, optimal_separation_d, dumbell, find_error = True):
-    atom_positions = am.get_atom_positions(s_normalised, optimal_separation,pca=True,subtract_background=True, normalize_intensity=True)
+def get_sublattice(s_normalised, optimal_separation, optimal_separation_d = 5 , dumbell = False,
+                   find_lattice_error = False, find_gaussian_error = False):
+    
+    atom_positions = am.get_atom_positions(s_normalised, optimal_separation,
+                                           pca=True,subtract_background=True, normalize_intensity=True)
     sublattice = am.Sublattice(atom_positions, s_normalised)
     sublattice.find_nearest_neighbors()
     sublattice.refine_atom_positions_using_center_of_mass()
@@ -56,10 +70,16 @@ def get_sublattice(s_normalised, optimal_separation, optimal_separation_d, dumbe
         dumbbell_lattice.sublattice_list[0].units=s_normalised.axes_manager[0].units
         dumbbell_lattice.sublattice_list[1].units=s_normalised.axes_manager[0].units
     else:
-        if (find_error is True):   
-            print("Fin error")
+        if (find_lattice_error is True):   
+            print("Finding lattice error")
             neighbor_distances = lattice_error(sublattice)
             return sublattice, neighbor_distances
+        
+        elif (find_gaussian_error is True):
+            print('Finding gaussian error')
+            gaussian_deviation = gaussian_error(sublattice)
+            return sublattice, gaussian_deviation
+        
         else:    
             return sublattice
     
