@@ -177,8 +177,8 @@ def plot_profile(intensity_A,intensity_B):
     # Third subplot
     axs[2].errorbar(avg_axis, avg_intensity, yerr=avg_std, ecolor='lightcoral', marker='.', fmt=':', capsize=5, alpha=0.75, mec='red', mfc='red', color='red', markersize=10)
     axs[2].fill_between(avg_axis, avg_intensity - avg_std, avg_intensity + avg_std, alpha=.25, color='lightcoral')
-    axs[2].errorbar(avg_axis1, avg_intensity1, yerr=avg_std1, ecolor='lightblue', marker='.', fmt=':', capsize=3, alpha=0.75, mec='skyblue', mfc='skyblue', color='skyblue', markersize=10)
-    axs[2].fill_between(avg_axis1, avg_intensity1 - avg_std1, avg_intensity1 + avg_std1, alpha=.25, color='lightblue')
+    axs[2].errorbar(avg_axis1, avg_intensity1, yerr=avg_std1, ecolor='darkgreen', marker='.', fmt=':', capsize=3, alpha=0.75, mec='skyblue', mfc='skyblue', color='skyblue', markersize=10)
+    axs[2].fill_between(avg_axis1, avg_intensity1 - avg_std1, avg_intensity1 + avg_std1, alpha=.25, color='darkgreen')
     axs[2].set_xlabel('Position [nm]',fontsize = 16)
     axs[2].set_ylabel('Intensity',fontsize = 16)
     axs[2].minorticks_on()

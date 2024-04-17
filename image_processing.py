@@ -33,9 +33,9 @@ def make_intensity_map(path, atom_lattice, images):
             intensity_B = np.load(path+'\\im_B_'+image_name+'.npy')
         else:
             intensity_A, intensity_B = intensity_map(globals()[image_name], atom_lattice)
-            intensity_B = intensity_map2(globals()[image_name], atom_lattice)
             np.save(path+'\\im_A_'+image_name+'.npy',intensity_A)
             np.save(path+'\\im_B_'+image_name+'.npy',intensity_B)
+    return intensity_B, intensity_A
             
 def make_intensity_map2(path, atom_lattice, images):
     for image_name in images:
@@ -117,7 +117,7 @@ det_path= open_file()
 det_image=hs.signals.Signal2D(plt.imread(det_path[0]))
 
 global dumbell
-dumbell = False
+dumbell = True
 
 for file_path in file_paths:
 
@@ -138,15 +138,14 @@ for file_path in file_paths:
     SL_pca.image.data=SL.PCA(4)
     optimal_separation_d = 24
     #optimal_separation = find_optimal_pixel_sep(SL.image, SL.pixel_size_pm ,gaussian=False)
-    #optimal_separation = 9
-    optimal_separation = 16
-    atom_lattice = get_sublattice(SL_pca.image, optimal_separation, optimal_separation_d)
+    optimal_separation = 9
+    atom_lattice = make_lattice(path, SL.image, optimal_separation, optimal_separation_d, dumbell)
     
     
     # Intensity map
     pca_imag =  SL.image.data
     images = ["pca_imag"]
-    intensity_B = make_intensity_map2(path, atom_lattice, images)
+    intensity_A, intensity_B = make_intensity_map(path, atom_lattice, images)
 
     
     #compare(original_imag , pca_imag, 'PCA - 8')
