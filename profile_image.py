@@ -8,7 +8,7 @@ from matplotlib import gridspec
 from hyperspy.component import Component
 from sklearn.metrics import r2_score
 from matplotlib.offsetbox import AnchoredText
-
+import time
 # Module to asses the interface profile and Muraki model fitting
 
 # Muraki model stuff
@@ -87,7 +87,7 @@ def fitt_muraki(intensity_map):
     interactive=True,
     drag_from_anywhere=True
     )
-    
+    time.sleep(3)
     ax1 = plt.subplot(gs[1])
     img2=ax1.scatter(intensity_map[:,:,1],intensity_map[:,:,2],s=20,c=normalized_array[:,:,0],cmap='jet',vmin=-0.25,vmax=1.25)
     fig.colorbar(img2,shrink=0.4,pad=0)
@@ -145,7 +145,7 @@ def composition_profile(intensity_A, intensity_B, atom_lattice):
     
     plot_profile(intensity_A,intensity_B)
 
-    #fitt_muraki(intensity_A)
+    fitt_muraki(intensity_A)
     
     
 
@@ -175,12 +175,12 @@ def plot_profile(intensity_A,intensity_B):
     axs[1].set_title('Group V')
     
     # Third subplot
-    axs[2].errorbar(avg_axis, avg_intensity, yerr=avg_std, ecolor='lightcoral', marker='.', fmt=':', capsize=3, alpha=0.75, mec='red', mfc='red', color='red')
+    axs[2].errorbar(avg_axis, avg_intensity, yerr=avg_std, ecolor='lightcoral', marker='.', fmt=':', capsize=5, alpha=0.75, mec='red', mfc='red', color='red', markersize=10)
     axs[2].fill_between(avg_axis, avg_intensity - avg_std, avg_intensity + avg_std, alpha=.25, color='lightcoral')
-    axs[2].errorbar(avg_axis1, avg_intensity1, yerr=avg_std1, ecolor='lightblue', marker='.', fmt=':', capsize=3, alpha=0.75, mec='skyblue', mfc='skyblue', color='skyblue')
+    axs[2].errorbar(avg_axis1, avg_intensity1, yerr=avg_std1, ecolor='lightblue', marker='.', fmt=':', capsize=3, alpha=0.75, mec='skyblue', mfc='skyblue', color='skyblue', markersize=10)
     axs[2].fill_between(avg_axis1, avg_intensity1 - avg_std1, avg_intensity1 + avg_std1, alpha=.25, color='lightblue')
-    axs[2].set_xlabel('Position [nm]')
-    axs[2].set_ylabel('Intensity')
+    axs[2].set_xlabel('Position [nm]',fontsize = 16)
+    axs[2].set_ylabel('Intensity',fontsize = 16)
     axs[2].minorticks_on()
     axs[2].grid(which='both', linestyle='--', color='gray', alpha=0.5)
     axs[2].set_title('Intensity vs Position')
@@ -190,3 +190,7 @@ def plot_profile(intensity_A,intensity_B):
     
     # Show the figure
     plt.show(block=False)
+    
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    

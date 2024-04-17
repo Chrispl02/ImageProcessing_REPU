@@ -40,8 +40,8 @@ def make_intensity_map(path, atom_lattice, images):
 def make_intensity_map2(path, atom_lattice, images):
     for image_name in images:
         
-        if (os.path.exists(path+'\\im_A_'+image_name+'.npy')) & (os.path.exists(path+'\\im_B_'+image_name+'.npy')):
-            #intensity_A = np.load(path+'\\im_A_'+image_name+'.npy')
+        if (os.path.exists(path+'\\im_B_'+image_name+'.npy')):
+            print('Intensity map loaded')
             intensity_B = np.load(path+'\\im_B_'+image_name+'.npy')
         else:
             #intensity_A, intensity_B = intensity_map(globals()[image_name], atom_lattice)
@@ -52,8 +52,8 @@ def make_intensity_map2(path, atom_lattice, images):
 
 
 def find_optimal_pixel_sep(image, pixel_size_pm, gaussian = False):
-    pixel_min_sep = round(320/pixel_size_pm/8)
-    pixel_max_sep = round(320/pixel_size_pm/3)
+    pixel_min_sep = round(340/pixel_size_pm/8)
+    pixel_max_sep = round(400/pixel_size_pm/4)
     
     total_atoms = []
     pixel_separations = np.array(range (pixel_min_sep, pixel_max_sep))
@@ -69,10 +69,11 @@ def find_optimal_pixel_sep(image, pixel_size_pm, gaussian = False):
         except:
             print("Not able to obtain consistent atom positions with this separation distance")
     neighbor_distances = np.array(neighbor_distances)
-    plt.plot(pixel_separations, total_atoms/np.min(total_atoms),marker='o')
-    plt.plot(pixel_separations, neighbor_distances[:,1],marker='o')
-    plt.xlabel('Minimum pixel separation [pixels]')
-    plt.legend(['Total atoms ratio', 'First neighbord distances standard deviation'],fontsize = 12)
+    plt.plot(pixel_separations, neighbor_distances[:,1],marker='o', color = 'navy', markersize= 13, linewidth=2)
+    plt.xlabel('Minimum pixel separation [pixels]',fontsize = 16)
+    plt.ylabel('First neighbord distances standard deviation [pm]',fontsize = 16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
     plt.grid()
     index = np.argmin(neighbor_distances[:,1])
     optimal = pixel_separations[index]
@@ -124,8 +125,8 @@ for file_path in file_paths:
     print(et - st)
     
     s=hs.load(file_path)
-    s = s.isig[500:1500, 500:3500]
-    
+    #s = s.isig[500:1500, 500:3500]
+    s = s.isig[1000:2333, 0:4000]
     path = os.path.splitext(file_path)[0]
     if not (os.path.exists(path)):
         os.mkdir(path)
@@ -136,20 +137,21 @@ for file_path in file_paths:
     SL_pca.scale(det_image)
     SL_pca.image.data=SL.PCA(4)
     optimal_separation_d = 24
-    optimal_separation = find_optimal_pixel_sep(SL.image, SL.pixel_size_pm ,gaussian=True)
-    #optimal_separation = 19
-    #atom_lattice = get_sublattice(SL.image, optimal_separation, optimal_separation_d , dumbell, find_error = False)
+    #optimal_separation = find_optimal_pixel_sep(SL.image, SL.pixel_size_pm ,gaussian=False)
+    #optimal_separation = 9
+    optimal_separation = 16
+    atom_lattice = get_sublattice(SL_pca.image, optimal_separation, optimal_separation_d)
     
     
     # Intensity map
-    #pca_imag =  SL.image.data
-    #images = ["pca_imag"]
-    #intensity_B = make_intensity_map2(path, atom_lattice, images)
+    pca_imag =  SL.image.data
+    images = ["pca_imag"]
+    intensity_B = make_intensity_map2(path, atom_lattice, images)
 
     
     #compare(original_imag , pca_imag, 'PCA - 8')
     #intensity_A, intensity_B = intensity_B, intensity_A
-    #composition_profile(intensity_A, intensity_B, atom_lattice)
+    composition_profile(intensity_B, intensity_B, atom_lattice)
     
     print('end')
 

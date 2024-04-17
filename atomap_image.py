@@ -81,6 +81,8 @@ def get_sublattice(s_normalised, optimal_separation, optimal_separation_d = 5 , 
             return sublattice, gaussian_deviation
         
         else:    
+            sublattice.refine_atom_positions_using_2d_gaussian()
+            sublattice.get_atom_list_on_image(markersize=5).plot()
             return sublattice
     
     
